@@ -5,51 +5,16 @@ This repository contains the reference implementation for the paper
 
 RelaxRD studies how to design relational schemas guided by approximate functional dependencies (AFDs) in order to reduce storage redundancy while guaranteeing lossless reconstruction.
 
----
-
-## Repository Structure
-
-
-RelaxRD/
-├── AFD_discovery/          # Step 1: Approximate FD discovery
-│   ├── afd_pkl/            # Discovered AFDs (serialized)
-│   │   └── fraudtrain.pkl
-│   └── tane.py             # TANE-based AFD discovery
-│
-├── CoreAFD/                # Step 2: Core AFD set selection
-│   ├── source/
-│   │   ├── naivecore.py
-│   │   ├── quickcore.py
-│   │   ├── selectingcoreafd.py
-│   │   ├── selectingcoreafd_update.py
-│   │   └── main.py
-│   └── output/
-│       └── fraud.pkl       # Selected core AFD set
-│
-├── RelaxRD/                # Step 3: RelaxRD schema design & materialization
-│   ├── source/
-│   │   ├── schemadesign.py
-│   │   ├── RelaxRD.py
-│   │   └── main.py
-│   └── output/
-│       ├── r0.csv
-│       ├── r1.csv
-│       ├── r2.csv
-│       ├── r3.csv
-│       └── r4.csv
-│
-└── dataset/                # Input datasets
-└── fraud/
-└── fraudTrain.csv
 
 
 ## Dataset
 
-We include a **representative dataset (`fraud`)** in this repository as a **running example** for all three steps of RelaxRD:
+We include a **representative dataset (`fraud`)** (\href{https://www.kaggle.com/datasets/kartik2112/fraud-detection}{public fraud transaction dataset}) as a running example. in this repository as a **running example** for all three steps of RelaxRD:
 
 - AFD discovery
 - Core AFD set selection
-- RelaxRD schema construction and materialization
+- RelaxRD Schema Construction and Relation Instantiation
+
 
 All scripts are pre-configured to run on this dataset by default.  
 Users may replace the dataset with their own data by modifying the dataset paths accordingly.
@@ -58,23 +23,72 @@ For convenience and reproducibility, **the outputs produced on the fraud dataset
 
 ---
 
-## Step 1: Approximate Functional Dependency Discovery
+## Step 1: AFD Discovery
 
-Approximate functional dependencies can be:
-- provided by domain experts, or
-- automatically discovered using existing algorithms.
+In this step, we obtain a pool of candidate approximate functional dependencies (AFDs).
+AFDs can be provided by domain experts or discovered automatically.
+In our implementation, we use the classical TANE-based algorithm to discover AFDs.
 
-In this repository, we use a **TANE-based approach** to discover AFDs.
 
-### Run
-
-```bash
-cd AFD_discovery
-python tane.py
-
-	•	Input datasets are read from the dataset/ directory.
-	•	Discovered AFDs are serialized and stored in:
-
+From the project root directory, run:
 
 ```bash
-python train.py --data_dir "your data dir" --data enron --prefix bandrank --verbose 1
+python -m AFD_discovery.main_tane \
+  --data_dir dataset/fraud/fraudTrain.csv \
+  --output_dir AFD_discovery/Sigma \
+  --error 0.05
+```
+
+	--data_dir: path to the input CSV dataset
+	--output_dir: directory to store discovered AFDs
+	--error: error threshold ε for approximate FDs
+
+
+The discovered AFDs are stored as a pickle file in **AFD_discovery/Sigma/fraudTrain_sigma.pkl**.
+
+
+## Step 2: Core AFD Set Selection
+
+
+Given a pool of candidate AFDs $\Sigma$, We provide two algorithms for selecting the core AFD set: **NaiveCore** and **QuickCore**.
+
+From the project root directory, run:
+
+```bash
+python -m CoreAFD.main_coreafd \
+  --data_dir dataset/fraud/fraudTrain.csv \
+  --Sigma AFD_discovery/Sigma/fraudtrain.pkl \
+  --method quickcore
+```
+
+	--data_dir: path to the input dataset.
+	--Sigma: path to the discovered AFD file produced in Step 1.
+	--method: Core AFD selection algorithm: quickcore or naivecore.
+
+The resulting core AFD set will be stored in **/CoreAFD/output/fraudTrain_coreafd.pkl**
+
+
+## Step 3: RelaxRD Schema Construction and Relation Instantiation
+
+Given an input dataset and a selected core AFD set, RelaxRD constructs a relaxed logical schema
+and materializes the relation accordingly.
+
+
+From the project root directory, run:
+
+
+```bash
+python -m RelaxRD.main_relaxrd \
+  --data_dir dataset/fraud/fraudTrain.csv \
+  --coreafd CoreAFD/output/fraudTrain_coreafd.pkl \
+  --output_dir RelaxRD/output
+```
+
+	--data_dir: path to the input dataset
+	--coreafd: path to the selected core AFD set
+	--output_dir: root directory for storing decomposed relations
+
+The decomposed relations will be stored in **RelaxRD/output/fraudTrain/**
+
+
+
