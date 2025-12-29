@@ -1,6 +1,9 @@
 from typing import Tuple, Dict
 from collections import defaultdict
 import pandas as pd
+import time
+import pickle as pkl
+
 
 class QuickCore:
     def __init__(self, df: pd.DataFrame, sigma, err: Dict[Tuple[Tuple[str, ...], str], float]):
@@ -13,10 +16,16 @@ class QuickCore:
         self._low_memo = {}
 
     def quickcore(self):
-        sigma = self._filter_out_non_duplicate_afds(self.sigma)
-        sigma = self._filter_out_using_rhs_uniqueness(sigma)
+        t1 = time.time()
+        print(f"[Effectiveness] Number of AFD in Σ: {len(self.sigma)}")
+        self.sigma = self._filter_out_non_duplicate_afds(self.sigma)
+        tf=time.time()
+        print(f"[Effectiveness] Number of AFD after filtering, |Σ|_NaiveCore_1: {len(self.sigma)}")
+        self.sigma = self._filter_out_using_rhs_uniqueness(self.sigma)
+        print(f"[Effectiveness] Number of AFD after filtering, |Σ|_NaiveCore_2: {len(self.sigma)}")
+        t2=time.time()
         S, dg_S_l, dg_S_u = [], 0.0, 0.0
-        L1 = [(tuple(afd),) for afd in sigma]
+        L1 = [(tuple(afd),) for afd in self.sigma]
         L = [None, L1]
         l = 1
         while L[l]:
@@ -36,8 +45,55 @@ class QuickCore:
                         dg_S_u = max(dg_S_u, up)
             L.append(self._generate_next_level(next_level_seeds))
             l += 1
+        print(f"[Effectiveness] Number of candidate AFD subsets after QuickCore, |S_QuickCore|: {len(S)}")
+        print('-------------------------------------------------------------------------------------')
+        print(f"[Efficiency] Time of filtering using NaiveCore_1, Σ_NaiveCore_1: {tf-t1:.4f} seconds")
+        print(f"[Efficiency] Time of filtering using NaiveCore_2, Σ_NaiveCore_2: {t2-tf:.4f} seconds")
+        print(f"[Efficiency] Time of pruning: {time.time()-t2:.4f} seconds")
+        print('-------------------------------------------------------------------------------------')
         return S
 
+    def compute_closure(self, lhs, fd_list):
+        closure = set(lhs)
+        changed = True
+        while changed:
+            changed = False
+            for l, r in fd_list:
+                if set(l).issubset(closure) and r not in closure:
+                    closure.add(r)
+                    changed = True
+        return closure
+    def _deduplicate_equivalent_fd_sets(self, fd_list):
+        lhs_to_rhs_set = defaultdict(set)
+        for lhs, rhs in fd_list:
+            lhs_key = tuple(sorted(lhs))
+            lhs_to_rhs_set[lhs_key].add(rhs)
+
+        closure_map = {}
+        for lhs in lhs_to_rhs_set:
+            closure_map[lhs] = self.compute_closure(lhs, fd_list)
+
+        removed_lhs = set()
+        lhs_keys = list(lhs_to_rhs_set.keys())
+        for i in range(len(lhs_keys)):
+            for j in range(i + 1, len(lhs_keys)):
+                lhs1, lhs2 = lhs_keys[i], lhs_keys[j]
+
+                if lhs1 in removed_lhs or lhs2 in removed_lhs:
+                    continue
+                if closure_map[lhs1] >= set(lhs2) and closure_map[lhs2] >= set(lhs1):
+                    if lhs1 < lhs2:
+                        removed_lhs.add(lhs2)
+                    else:
+                        removed_lhs.add(lhs1)
+
+        cleaned_fd = []
+        for lhs, rhs in fd_list:
+            lhs_key = tuple(sorted(lhs))
+            if lhs_key not in removed_lhs:
+                cleaned_fd.append((lhs, rhs))
+
+        return cleaned_fd
     def _d(self, X):
         X = tuple(X)
         if X not in self._DIST_CACHE:
@@ -87,6 +143,7 @@ class QuickCore:
         return any(dfs(n, set()) for n in list(g) if n not in seen)
 
     def _filter_out_non_duplicate_afds(self, sigma):
+        sigma=self._deduplicate_equivalent_fd_sets(sigma)
         lhs2rhs = defaultdict(set)
         for lhs, rhs in sigma:
             lhs2rhs[lhs].add(rhs)
@@ -231,3 +288,20 @@ class QuickCore:
                 if gain is not None:
                     gain_map[rhs].append((lhs_t, gain))
         return gain_map
+    def save_coreafd_as_pkl(self, coreafd, output_pkl_path):
+        lhs_to_rhs = defaultdict(list)
+
+        for lhs, rhs in coreafd:
+            lhs_key = tuple(lhs)  # 保证 hashable / 稳定
+            lhs_to_rhs[lhs_key].append(rhs)
+        afd_list = []
+        for lhs, rhs_list in lhs_to_rhs.items():
+            afd_list.append({
+                "lhs": list(lhs),
+                "rhs": sorted(rhs_list)  # 排序，保证可复现
+            })
+
+        with open(output_pkl_path, "wb") as f:
+            pkl.dump(afd_list, f)
+
+        print(f"[AFD Save] Saved {len(afd_list)} AFD entries to {output_pkl_path}")
