@@ -9,17 +9,21 @@ RelaxRD studies how to design relational schemas guided by approximate functiona
 
 ## Dataset
 
-We include a **representative dataset (`fraud`)** (\href{https://www.kaggle.com/datasets/kartik2112/fraud-detection}) in this repository as a **running example** for all three steps of RelaxRD:
+We include a **representative dataset (fraud)** as a running example throughout all three steps of RelaxRD:
 
-- AFD discovery
-- Core AFD set selection
-- RelaxRD Schema Construction and Relation Instantiation
+- Approximate Functional Dependency (AFD) discovery  
+- Core AFD set selection  
+- RelaxRD schema construction and relation instantiation 
 
+Due to its size, the dataset is not included in this repository.  
+Readers can download the file **fraudTrain.csv** from  
+https://www.kaggle.com/datasets/kartik2112/fraud-detection  
+and place it at: **dataset/fraud/fraudTrain.csv** 
 
-All scripts are pre-configured to run on this dataset by default.  
-Users may replace the dataset with their own data by modifying the dataset paths accordingly.
+Users may also replace this dataset with their own data by modifying the dataset paths accordingly.
 
-For convenience and reproducibility, **the outputs produced on the fraud dataset are already included** in each step’s `output/` directory.
+For convenience and reproducibility, **the outputs produced on the fraud dataset are already included** in the corresponding `output/` directories for each step.  
+These outputs allow readers to inspect intermediate and final results without rerunning the entire pipeline.
 
 ---
 
