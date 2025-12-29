@@ -9,7 +9,7 @@ RelaxRD studies how to design relational schemas guided by approximate functiona
 
 ## Dataset
 
-We include a **representative dataset (`fraud`)** (\href{https://www.kaggle.com/datasets/kartik2112/fraud-detection}{public fraud transaction dataset}) as a running example. in this repository as a **running example** for all three steps of RelaxRD:
+We include a **representative dataset (`fraud`)** (\href{https://www.kaggle.com/datasets/kartik2112/fraud-detection}) in this repository as a **running example** for all three steps of RelaxRD:
 
 - AFD discovery
 - Core AFD set selection
