@@ -1,5 +1,4 @@
 
 
-python>=3.10
-numpy >= 1.23
-pandas >= 2.0
+python=3.13
+pandas >= 2.2.3
